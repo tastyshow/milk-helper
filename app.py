@@ -1,38 +1,37 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 from PIL import Image
 
-# 1. 页面设置
-st.set_page_config(page_title="牛奶比价助手", layout="centered")
-st.title("🥛 牛奶比价记录助手")
+# 1. 页面配置
+st.set_page_config(page_title="牛奶比价助手1", layout="centered")
+st.title("🥛 牛奶比价记录助手1")
 
-# 2. 检查配置
+# 2. 初始化客户端
 try:
+    # 确保 Secrets 里的 key 名称一致
     api_key = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=api_key)
-    # 使用标准模型名称
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    client = genai.Client(api_key=api_key)
 except Exception as e:
-    st.error(f"配置错误: {e}")
+    st.error("配置错误，请检查 Secrets")
     st.stop()
 
-# 3. 文件处理
-uploaded_file = st.file_uploader("请上传牛奶标签截图", type=["jpg", "png", "jpeg"])
+# 3. 上传与识别
+uploaded_file = st.file_uploader("请上传图片", type=["jpg", "png", "jpeg"])
 
-if uploaded_file is not None:
-    st.image(uploaded_file, caption='图片上传成功', width='stretch')
-    
-    if st.button("开始识别"):
-        with st.spinner('正在分析中...'):
+if uploaded_file:
+    st.image(uploaded_file, width=300)
+    if st.button("开始分析"):
+        with st.spinner('正在分析...'):
             try:
                 img = Image.open(uploaded_file)
-                # 直接调用模型
-                response = model.generate_content([
-                    "请识别图片中的牛奶价格和容量，计算折合250ml的价格。输出格式：价格:X元, 容量:Yml, 折合250ml价格:Z元。", 
-                    img
-                ])
-                st.subheader("分析结果")
+                # 使用新版 SDK 的标准调用方式
+                response = client.models.generate_content(
+                    model='gemini-2.0-flash', # Google 新一代模型，默认权限最高
+                    contents=[
+                        "请提取图片中的单价和容量，计算折合250ml价格。格式：价格:X, 容量:Y, 折合250ml:Z。",
+                        img
+                    ]
+                )
                 st.write(response.text)
             except Exception as e:
                 st.error(f"分析出错: {e}")
-                st.info("如果还是 404，请确保 API Key 在 AI Studio 中是针对此项目激活的。")
