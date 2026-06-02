@@ -6,11 +6,11 @@ from google.genai import types
 st.set_page_config(page_title="牛奶比价助手", layout="centered")
 st.title("🥛 牛奶比价记录助手")
 
-# 2. 读取 API KEY
+# 2. 初始化客户端 (采用最基础的配置)
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
-    # 【修复点】：显式指定 API 版本，并使用标准模型名称
-    client = genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
+    # 删掉所有额外的 http_options 配置，让 SDK 使用默认环境配置
+    client = genai.Client(api_key=api_key)
 except Exception as e:
     st.error("配置错误，请检查 Secrets 中的 GEMINI_API_KEY")
     st.stop()
@@ -31,9 +31,10 @@ if uploaded_file is not None:
                     mime_type="image/jpeg"
                 )
                 
-                # 【修复点】：使用更通用的模型 ID，避免 404 错误
+                # 【关键修复】：使用最简化的模型 ID
+                # 某些 API 环境下，必须使用 gemini-1.5-flash，不能加任何后缀
                 response = client.models.generate_content(
-                    model='gemini-1.5-flash-latest', 
+                    model='gemini-1.5-flash', 
                     contents=[
                         "请识别图片中的牛奶价格和容量。计算出折合 250ml 的价格。输出格式：价格:X元, 容量:Yml, 折合250ml价格:Z元。",
                         image_part
@@ -45,5 +46,6 @@ if uploaded_file is not None:
                 
             except Exception as e:
                 st.error(f"分析出错: {e}")
+                st.write("如果依然显示 404，建议检查你的 Google Cloud Project 是否已在该区域开通了该模型的访问权限。")
 else:
     st.write("请上传图片以开始比价流程。")
