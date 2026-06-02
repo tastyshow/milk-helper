@@ -1,5 +1,3 @@
 streamlit
-pandas
-gspread
-oauth2client
-google-genai  # 修改这里
+openai
+pillow
