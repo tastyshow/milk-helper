@@ -1,45 +1,38 @@
 import streamlit as st
-from openai import OpenAI
+import google.generativeai as genai
+from PIL import Image
 
-# 1. 页面配置
+# 1. 页面设置
 st.set_page_config(page_title="牛奶比价助手", layout="centered")
 st.title("🥛 牛奶比价记录助手")
 
-# 2. 读取 Secrets (在 Streamlit Cloud 中配置)
-# DEEPSEEK_API_KEY = "sk-..."
-# DEEPSEEK_API_BASE = "https://api.deepseek.com"
+# 2. 检查配置
 try:
-    api_key = st.secrets["DEEPSEEK_API_KEY"]
-    base_url = st.secrets["DEEPSEEK_API_BASE"]
-    client = OpenAI(api_key=api_key, base_url=base_url)
+    api_key = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=api_key)
+    # 使用标准模型名称
+    model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
-    st.error("请在 Secrets 中配置 DEEPSEEK_API_KEY 和 DEEPSEEK_API_BASE")
+    st.error(f"配置错误: {e}")
     st.stop()
 
-# 3. 文件上传与识别逻辑
+# 3. 文件处理
 uploaded_file = st.file_uploader("请上传牛奶标签截图", type=["jpg", "png", "jpeg"])
 
 if uploaded_file is not None:
     st.image(uploaded_file, caption='图片上传成功', width='stretch')
     
-    if st.button("开始识别并计算"):
+    if st.button("开始识别"):
         with st.spinner('正在分析中...'):
             try:
-                # DeepSeek 目前主要通过文本处理比价信息
-                # 如果你需要图片分析，请确保使用支持多模态的 model (如 deepseek-chat)
-                # 建议先上传图片，这里逻辑已适配
-                response = client.chat.completions.create(
-                    model="deepseek-chat",
-                    messages=[
-                        {"role": "system", "content": "你是一个生活比价助手。"},
-                        {"role": "user", "content": "请分析图片中的牛奶价格和容量，并计算折合250ml的价格。"}
-                    ]
-                )
-                
+                img = Image.open(uploaded_file)
+                # 直接调用模型
+                response = model.generate_content([
+                    "请识别图片中的牛奶价格和容量，计算折合250ml的价格。输出格式：价格:X元, 容量:Yml, 折合250ml价格:Z元。", 
+                    img
+                ])
                 st.subheader("分析结果")
-                st.write(response.choices[0].message.content)
-                
+                st.write(response.text)
             except Exception as e:
                 st.error(f"分析出错: {e}")
-else:
-    st.write("请上传图片以开始比价流程。")
+                st.info("如果还是 404，请确保 API Key 在 AI Studio 中是针对此项目激活的。")
