@@ -9,9 +9,10 @@ st.title("🥛 牛奶比价记录助手")
 # 2. 读取 API KEY
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
-    client = genai.Client(api_key=api_key)
+    # 【修复点】：显式指定 API 版本，并使用标准模型名称
+    client = genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
 except Exception as e:
-    st.error("未配置 API KEY，请在 Streamlit Cloud 的 Secrets 中设置 GEMINI_API_KEY")
+    st.error("配置错误，请检查 Secrets 中的 GEMINI_API_KEY")
     st.stop()
 
 # 3. 文件上传组件
@@ -21,17 +22,18 @@ if uploaded_file is not None:
     st.image(uploaded_file, caption='图片上传成功', width='stretch')
     
     if st.button("开始识别并计算"):
-        with st.spinner('正在分析中...'):
+        with st.spinner('正在通过 Gemini 进行视觉分析...'):
             try:
                 image_bytes = uploaded_file.getvalue()
+                
                 image_part = types.Part.from_bytes(
                     data=image_bytes,
                     mime_type="image/jpeg"
                 )
                 
-                # 【修改点】：切换为 gemini-1.5-flash 以缓解额度压力
+                # 【修复点】：使用更通用的模型 ID，避免 404 错误
                 response = client.models.generate_content(
-                    model='gemini-1.5-flash', 
+                    model='gemini-1.5-flash-latest', 
                     contents=[
                         "请识别图片中的牛奶价格和容量。计算出折合 250ml 的价格。输出格式：价格:X元, 容量:Yml, 折合250ml价格:Z元。",
                         image_part
@@ -42,7 +44,6 @@ if uploaded_file is not None:
                 st.write(response.text)
                 
             except Exception as e:
-                st.error(f"分析出错 (错误代码 {type(e).__name__}): {e}")
-                st.write("提示：如果提示额度耗尽，请更换 API Key 或明天重试。")
+                st.error(f"分析出错: {e}")
 else:
     st.write("请上传图片以开始比价流程。")
